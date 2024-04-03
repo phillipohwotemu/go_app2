@@ -20,7 +20,8 @@ pipeline {
 
         stage('Checkout') {
             steps {
-                checkout scm: [$class: 'GitSCM', userRemoteConfigs: [[url: 'https://github.com/phillipohwotemu/go_app2.git']], branches: [[name: '*/main']]]
+                checkout scm: [$class: 'GitSCM', userRemoteConfigs: [[url: 
+'https://github.com/phillipohwotemu/go_app2.git']], branches: [[name: '*/main']]]
             }
         }
 
@@ -35,10 +36,19 @@ pipeline {
         stage('Run Docker Container') {
             steps {
                 script {
-                    // Stop and remove any previously running container to avoid conflicts
+                    // Attempt to stop and remove any previously running container to avoid conflicts
                     sh "docker rm -f ${env.CONTAINER_NAME} || true"
-                    // Run the new Docker container, mapping the port to the host
-                    sh "docker run -d --name ${env.CONTAINER_NAME} -p ${env.PORT}:${env.PORT} ${env.IMAGE_NAME}:latest"
+
+                    // Try to run the new Docker container, mapping the port to the host
+                    // Include error handling to catch and display any issues during container startup
+                    try {
+                        sh "docker run -d --name ${env.CONTAINER_NAME} -p ${env.PORT}:${env.PORT} 
+${env.IMAGE_NAME}:latest"
+                    } catch (Exception e) {
+                        echo "Failed to start Docker container: ${e.getMessage()}"
+                        // Optionally, rethrow the exception to fail the build
+                        // throw e
+                    }
                 }
             }
         }
@@ -49,8 +59,8 @@ pipeline {
     post {
         always {
             echo 'Pipeline execution complete.'
-            // Cleanup: Stop and remove the Docker container
-            sh "docker rm -f ${env.CONTAINER_NAME} || true"
+            // Cleanup: Optionally, stop and remove the Docker container
+            // sh "docker rm -f ${env.CONTAINER_NAME} || true"
         }
         // Implement any other post conditions like 'success', 'failure', etc., as needed.
     }
