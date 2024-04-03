@@ -1,21 +1,25 @@
 pipeline {
     agent any
 
-    // Define environment variables or stages as needed here
+    environment {
+        // Define any global environment variables here
+        IMAGE_NAME = 'mygoapp'
+        CONTAINER_NAME = 'mygoapp-instance'
+        PORT = '8080'
+    }
 
     stages {
         stage('Initialize') {
             steps {
                 script {
-                    // Initialize or setup steps, if any
                     echo 'Preparing environment'
+                    // Any initialization or setup steps
                 }
             }
         }
 
         stage('Checkout') {
             steps {
-                // Checkout from the specific branch, ensuring we're using 'main'
                 checkout scm: [$class: 'GitSCM', userRemoteConfigs: [[url: 'https://github.com/phillipohwotemu/go_app2.git']], branches: [[name: '*/main']]]
             }
         }
@@ -23,21 +27,32 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build the Docker image using the Dockerfile in the root directory
-                    sh 'docker build -t mygoapp:latest .'
+                    sh "docker build -t ${env.IMAGE_NAME}:latest ."
                 }
             }
         }
 
-        // Include additional stages like 'Test', 'Deploy', etc., as needed
+        stage('Run Docker Container') {
+            steps {
+                script {
+                    // Stop and remove any previously running container to avoid conflicts
+                    sh "docker rm -f ${env.CONTAINER_NAME} || true"
+                    // Run the new Docker container, mapping the port to the host
+                    sh "docker run -d --name ${env.CONTAINER_NAME} -p ${env.PORT}:${env.PORT} ${env.IMAGE_NAME}:latest"
+                }
+            }
+        }
 
+        // Add additional stages for testing, deployment, etc., as needed.
     }
 
     post {
         always {
-            // Actions to perform after the pipeline runs, like cleanup
             echo 'Pipeline execution complete.'
+            // Cleanup: Stop and remove the Docker container
+            sh "docker rm -f ${env.CONTAINER_NAME} || true"
         }
+        // Implement any other post conditions like 'success', 'failure', etc., as needed.
     }
 }
 
