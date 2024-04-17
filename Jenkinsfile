@@ -9,22 +9,21 @@ pipeline {
     stages {
         stage('Initialize') {
             steps {
-                script {
-                    echo 'Preparing environment'
-                }
+                echo 'Preparing environment'
             }
         }
 
-        stage('Checkout') {
+        stage('Checkout SCM') {
             steps {
-                checkout scm: [$class: 'GitSCM', userRemoteConfigs: [[url: 'https://github.com/phillipohwotemu/go_app2.git']], branches: [[name: '*/main']]]
+                checkout scm
             }
         }
 
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh 'docker build -t ${IMAGE_NAME}:latest .'
+                    // Build the Docker image using the Docker CLI installed in the Jenkins container
+                    sh "docker build -t ${env.IMAGE_NAME}:latest ."
                 }
             }
         }
@@ -32,11 +31,10 @@ pipeline {
         stage('Run Docker Container') {
             steps {
                 script {
-                    // Attempt to remove any previously running container to avoid name conflicts
-                    sh 'docker rm -f ${CONTAINER_NAME} || true'
-                    
-                    // Attempt to start a new container
-                    sh 'docker run -d --name ${CONTAINER_NAME} -p 8080:8080 ${IMAGE_NAME}:latest'
+                    // First, try to remove a previously running container if it exists
+                    sh "docker rm -f ${env.CONTAINER_NAME} || true"
+                    // Run a new instance of the Docker container
+                    sh "docker run -d --name ${env.CONTAINER_NAME} ${env.IMAGE_NAME}:latest"
                 }
             }
         }
@@ -44,14 +42,8 @@ pipeline {
         stage('Check Container Status') {
             steps {
                 script {
-                    // Wait briefly to allow the container to start up
-                    sh 'sleep 5'
-                    
-                    // Check if the container is running
-                    sh 'docker ps || true'
-                    
-                    // Output the logs of the container, useful for debugging startup issues
-                    sh 'docker logs ${CONTAINER_NAME} || true'
+                    // Check the status of the Docker container
+                    sh "docker ps"
                 }
             }
         }
@@ -59,10 +51,9 @@ pipeline {
 
     post {
         always {
-            // Actions to perform after the pipeline runs, like cleanup
+            // Clean up Docker container after the job is done
+            sh "docker rm -f ${env.CONTAINER_NAME} || true"
             echo 'Pipeline execution complete.'
-            // Optionally remove the container after inspection
-            sh 'docker rm -f ${CONTAINER_NAME} || true'
         }
     }
 }
