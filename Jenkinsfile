@@ -25,7 +25,7 @@ pipeline {
             steps {
                 script {
                     // Using sudo to run Docker commands
-                    sh 'sudo docker build -t ${IMAGE_NAME}:latest .'
+                    sh 'docker build -t ${IMAGE_NAME}:latest .'
                 }
             }
         }
@@ -34,8 +34,8 @@ pipeline {
             steps {
                 script {
                     // Using sudo to run Docker commands
-                    sh 'sudo docker rm -f ${CONTAINER_NAME} || true'
-                    sh 'sudo docker run -d --name ${CONTAINER_NAME} -p 8080:8080 ${IMAGE_NAME}:latest'
+                    sh 'docker rm -f ${CONTAINER_NAME} || true'
+                    sh 'docker run -d --name ${CONTAINER_NAME} -p 8080:8080 ${IMAGE_NAME}:latest'
                 }
             }
         }
@@ -43,8 +43,8 @@ pipeline {
         stage('Check Container Status') {
             steps {
                 script {
-                    sh 'sudo docker ps || true'
-                    sh 'sudo docker logs ${CONTAINER_NAME} || true'
+                    sh 'docker ps || true'
+                    sh 'docker logs ${CONTAINER_NAME} || true'
                 }
             }
         }
@@ -54,7 +54,7 @@ pipeline {
         always {
             echo 'Pipeline execution complete.'
             // Using sudo to run Docker commands
-            sh 'sudo docker rm -f ${CONTAINER_NAME} || true'
+            sh 'docker rm -f ${CONTAINER_NAME} || true'
         }
     }
 }
