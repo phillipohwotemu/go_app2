@@ -24,7 +24,8 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    sh 'docker build -t ${IMAGE_NAME}:latest .'
+                    // Using Docker Pipeline plugin to build the image
+                    docker.build("${IMAGE_NAME}:latest")
                 }
             }
         }
@@ -32,11 +33,12 @@ pipeline {
         stage('Run Docker Container') {
             steps {
                 script {
-                    // Attempt to remove any previously running container to avoid name conflicts
+                    // Stop and remove any existing container
                     sh 'docker rm -f ${CONTAINER_NAME} || true'
                     
-                    // Attempt to start a new container
-                    sh 'docker run -d --name ${CONTAINER_NAME} -p 8080:8080 ${IMAGE_NAME}:latest'
+                    // Start the Docker container using the Docker Pipeline plugin
+                    def app = docker.image("${IMAGE_NAME}:latest")
+                    app.run("-d --name ${CONTAINER_NAME} -p 8080:8080")
                 }
             }
         }
@@ -44,10 +46,7 @@ pipeline {
         stage('Check Container Status') {
             steps {
                 script {
-                    // Wait briefly to allow the container to start up
-                    sh 'sleep 5'
-                    
-                    // Check if the container is running
+                    // Check if the container is running using the Docker Pipeline plugin
                     sh 'docker ps || true'
                     
                     // Output the logs of the container, useful for debugging startup issues
@@ -66,4 +65,3 @@ pipeline {
         }
     }
 }
-
