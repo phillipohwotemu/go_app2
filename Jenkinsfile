@@ -5,6 +5,7 @@ pipeline {
         // Define your image name and other environment variables here
         IMAGE_NAME = 'mygoapp'
         CONTAINER_NAME = 'mygoapp-instance'
+        DOCKER_PATH = '/usr/bin/docker' // Adjust this path based on where Docker is installed on your Jenkins host
     }
 
     stages {
@@ -24,8 +25,12 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    // Build the Docker image using the Dockerfile in the repository
-                    sh "docker build -t ${env.IMAGE_NAME}:latest ."
+                    try {
+                        sh "${env.DOCKER_PATH} build -t ${env.IMAGE_NAME}:latest ."
+                    } catch (Exception e) {
+                        echo "Failed to build Docker image: ${e.getMessage()}"
+                        throw e // Rethrow to fail the stage
+                    }
                 }
             }
         }
@@ -33,8 +38,12 @@ pipeline {
         stage('Test') {
             steps {
                 script {
-                    // Run tests here; for simplicity, using docker run to execute tests
-                    sh "docker run --rm ${env.IMAGE_NAME}:latest ./run-tests.sh"
+                    try {
+                        sh "${env.DOCKER_PATH} run --rm ${env.IMAGE_NAME}:latest ./run-tests.sh"
+                    } catch (Exception e) {
+                        echo "Testing failed: ${e.getMessage()}"
+                        throw e // Rethrow to indicate test failure
+                    }
                 }
             }
         }
@@ -42,10 +51,13 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    // Deploy the container to a staging or production environment
-                    // This example assumes a simple docker run could be a deployment
-                    sh "docker rm -f ${env.CONTAINER_NAME} || true" // Ensure no previous instances are running
-                    sh "docker run -d --name ${env.CONTAINER_NAME} -p 80:80 ${env.IMAGE_NAME}:latest"
+                    try {
+                        sh "${env.DOCKER_PATH} rm -f ${env.CONTAINER_NAME} || true" // Ensure no previous instances are running
+                        sh "${env.DOCKER_PATH} run -d --name ${env.CONTAINER_NAME} -p 80:80 ${env.IMAGE_NAME}:latest"
+                    } catch (Exception e) {
+                        echo "Deployment failed: ${e.getMessage()}"
+                        throw e // Rethrow to indicate deployment failure
+                    }
                 }
             }
         }
@@ -53,9 +65,16 @@ pipeline {
 
     post {
         always {
-            // Clean up Docker images after the pipeline runs
-            sh "docker rmi ${env.IMAGE_NAME}:latest"
-            echo 'Pipeline execution complete.'
+            script {
+                try {
+                    sh "${env.DOCKER_PATH} stop ${env.CONTAINER_NAME} || true"
+                    sh "${env.DOCKER_PATH} rm ${env.CONTAINER_NAME} || true"
+                    sh "${env.DOCKER_PATH} rmi ${env.IMAGE_NAME}:latest || true"
+                } catch (Exception e) {
+                    echo "Error during cleanup: ${e.getMessage()}"
+                }
+                echo 'Pipeline execution complete.'
+            }
         }
         success {
             echo 'Build and deployment succeeded!'
@@ -65,3 +84,4 @@ pipeline {
         }
     }
 }
+
